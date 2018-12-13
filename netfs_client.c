@@ -25,6 +25,8 @@
 
 #include "common.h"
 #include "logging.h"
+#include "net.h"
+
 
 #define TEST_DATA "hello world!\n"
 
@@ -87,27 +89,47 @@ static int netfs_getattr(
     return res;
 }
 
+
 static int netfs_readdir(
         const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
         struct fuse_file_info *fi, enum fuse_readdir_flags flags) {
 
     LOG("readdir: %s\n", path);
+    //START WORKING HERE
 
     /* By default, we will return 0 from this function (success) */
     int res = 0;
 
+    struct netfs_msg_header req_header = { 0 };
+    req_header.msg_type = MSG_READDIR;
+    req_header.msg_len = strlen(path) + 1;
+
+    //HARD CODES FIX TO CHANGE BASED ON USER INPUT
+    int server_fd = connect_to("localhost", DEFAULT_PORT);
+    //we should check if server_fd is less than 0 here...
+    write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
+    write_len(server_fd, path, req_header.msg_len);
+
+    uint16_t reply_len;
+    char reply_path[1024] = { 0 };
+    do {
+        read_len(server_fd, &reply_len, sizeof(uint16_t));
+        read_len(server_fd, reply_path, reply_len);
+        filler(buf, reply_path, NULL, 0, 0);
+    } while (reply_len > 0);
+    close(server_fd);
+
     /* We only support one directory: the root directory. */
+    /*
     if (strcmp(path, "/") != 0) {
         return -ENOENT;
     } else {
-        /* Create our . and .. directory links */
+        
         filler(buf, ".", NULL, 0, 0);
         filler(buf, "..", NULL, 0, 0);
-
-        /* Create our single test file */
         filler(buf, "test_file", NULL, 0, 0);
     }
-
+*/
     return res;
 }
 

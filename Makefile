@@ -1,12 +1,19 @@
 
-CFLAGS += -Wall -g
+CFLAGS += -Wall -g -I/usr/include/fuse3 -lpthread -lfuse3 -D_FILE_OFFSET_BITS=64
 LDFLAGS +=
-client_flags += -I/usr/include/fuse3 -lpthread -lfuse3 -D_FILE_OFFSET_BITS=64
+
 
 all: netfs_client netfs_server
 
-netfs_client: netfs_client.c common.h logging.h
-	$(CC) $(CFLAGS) $(LDFLAGS) $(client_flags) $^ -o $@
+netfs_client: netfs_client.o net.o 
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+
+netfs_server: netfs_server.o net.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+
+net.o: net.c net.h logging.h
+netfs_client.o: netfs_client.c netfs_client.h common.h logging.h
+netfs_server.o: netfs_server.c netfs_server.h common.h logging.h
 
 clean:
 	rm -f netfs_client netfs_server
