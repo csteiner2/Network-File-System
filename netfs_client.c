@@ -51,12 +51,35 @@ static int netfs_getattr(
         const char *path, struct stat *stbuf, struct fuse_file_info *fi) {
 
     LOG("getattr: %s\n", path);
-
+    // int uid = stbuf->st_uid;
+    // LOG("UID: %d\n", uid);
     /* Clear the stat buffer */
     memset(stbuf, 0, sizeof(struct stat));
 
     /* By default, we will return 0 from this function (success) */
     int res = 0;
+    // struct netfs_msg_header req_header = { 0 };
+    // req_header.msg_type = MSG_GETATTR;
+    // req_header.msg_len = strlen(path) + 1;
+    // int server_fd = connect_to("localhost", DEFAULT_PORT);
+    // // //we should check if server_fd is less than 0 here...
+    //  write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
+    //  write_len(server_fd, path, req_header.msg_len);
+
+    // uint16_t reply_len;
+     //char reply_path[1024] = { 0 };
+
+    //struct stat *strec;
+    //memset(strec, 0, sizeof(struct stat));
+
+    //takes in the user ID from the server
+   // read_len(server_fd, stbuf, sizeof(uint16_t));
+    //int uid2 = stbuf->st_uid;
+    //LOG("UID2: %d\n", uid2);
+    
+    
+    //stbuf->st_mode = (mode_t) (~0222 & remote_st.st_mode);
+   // close(server_fd);
 
     if (strcmp(path, "/") == 0) {
         /* This is the root directory. We have hard-coded the permissions to 755
