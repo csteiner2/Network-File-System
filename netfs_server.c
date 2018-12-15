@@ -33,8 +33,9 @@ void handle_request(int fd) {
         req_header.msg_type,
         req_header.msg_len);
     uint16_t type = req_header.msg_type;
+    //checks if type is = READDIR and then loops over list of directory names and passes them
+    //to the client
     if (type == MSG_READDIR) {
-        //define largest in common.h
         char path[1024] = { 0 };
         read_len(fd, path, req_header.msg_len);
         LOG("readdir: %s\n", path);
@@ -64,7 +65,7 @@ void handle_request(int fd) {
         closedir(directory);
         close(fd);
         return;
-    
+    //checks if type is = GETATTR and then creates stat struct and passes to client
     }else if(type == MSG_GETATTR) {
         char path[1024] = { 0 };
         read_len(fd, path, req_header.msg_len);
@@ -90,9 +91,6 @@ void handle_request(int fd) {
         } else{
             stbuf->st_uid = 1;
         }
-        
-        //if its not sent by the user send a zero
-        // stbuf->st_mode = (mode_t) (~0222 & remote_st.st_mode);
         if(result != -1){
             write_len(fd, stbuf, sizeof(struct stat));
         }
@@ -100,6 +98,7 @@ void handle_request(int fd) {
         free(stbuf);
         close(fd);
         return;
+    //checkes if type is = open and then calls open and passes to client
     }else if(type == MSG_GETOPEN){
         char path[1024] = { 0 };
         read_len(fd, path, req_header.msg_len);
@@ -111,6 +110,53 @@ void handle_request(int fd) {
         write_len(fd, &result, sizeof(int));
         close(fd);
         return;
+    //checks if type is = read and then 
+    }else if(type == MSG_READ){
+        LOG("%s\n", "server read");
+        char path[1024] = { 0 };
+        read_len(fd, path, req_header.msg_len);
+        LOG("read: %s\n", path);
+        char full_path[1024] = { 0 };
+        strcpy(full_path, ".");
+        strcat(full_path, path);
+        off_t offset;
+        size_t size;
+        //read the offset
+        read_len(fd, &offset, sizeof(off_t));
+        //read the size
+        read_len(fd, &size, sizeof(size_t));
+        int result = open(full_path, O_RDONLY);
+        //get the stat
+        struct stat *stbuf = malloc(sizeof(struct stat));
+
+        //if size > file size from stat
+        //then size = actual file size
+
+
+        if(size>sizeof(stbuf->st_size)){
+            size = stbuf->st_size;
+        }
+        write_len(fd, &size, sizeof(size_t));
+
+        ///write the size
+        
+
+        //while loop for sendfile, returns bytes
+        int sendsize = 0;
+        while (sendsize<stbuf->st_size){
+            sendsize += sendfile(fd, result, &offset, size);
+        }
+        write_len(fd, &sendsize, sizeof(int));
+
+        
+
+        //write the sendfile
+        //write_len(fd, &result, sizeof(int));
+
+        free(stbuf);
+        close(fd);
+        return;
+
     }else{
         LOG("%s\n","ERROR: Unknown request type\n");
     }

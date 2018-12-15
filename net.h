@@ -8,6 +8,7 @@ enum msg_types {
 	MSG_READDIR = 1,
 	MSG_GETATTR = 2,
 	MSG_GETOPEN = 3,
+	MSG_READ = 4,
 };
 
 struct __attribute__((__packed__)) netfs_msg_header {
