@@ -6,7 +6,6 @@
  */
 
 #define FUSE_USE_VERSION 31
-
 #include <arpa/inet.h>
 #include <assert.h>
 #include <errno.h>
@@ -23,12 +22,9 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <sys/stat.h>
-
 #include "common.h"
 #include "logging.h"
 #include "net.h"
-
-
 #define TEST_DATA "hello world!\n"
 
 /* Command line options */
@@ -48,14 +44,16 @@ static const struct fuse_opt option_spec[] = {
     FUSE_OPT_END
 };
 
+//getattr function that sets msg type and length and writes it to the server
+//connects to the server and reads in the result 
+//checks if uid is equal to server uid
+//removes write bits
+//Logs information to the server
 static int netfs_getattr(
         const char *path, struct stat *stbuf, struct fuse_file_info *fi) {
 
     LOG("getattr: %s\n", path);
-    /* Clear the stat buffer */
     memset(stbuf, 0, sizeof(struct stat));
-
-    /* By default, we will return 0 from this function (success) */
     int res = 0;
     int result;
     struct netfs_msg_header req_header = { 0 };
@@ -70,9 +68,7 @@ static int netfs_getattr(
         close(server_fd);
         return -1;
     }
-
     read_len(server_fd, stbuf, sizeof(struct stat));
-
     if(stbuf->st_uid ==1) {
             stbuf->st_uid = getuid();
         }
@@ -81,27 +77,22 @@ static int netfs_getattr(
     return res;
 }
 
-
+//readdir function that sets msg type and length and writes it to the server
+//connects to the server
+//loop that reads in all of the directories from the server
+//Logs information to the server
 static int netfs_readdir(
         const char *path, void *buf, fuse_fill_dir_t filler, off_t offset,
         struct fuse_file_info *fi, enum fuse_readdir_flags flags) {
 
     LOG("readdir: %s\n", path);
-    //START WORKING HERE
-
-    /* By default, we will return 0 from this function (success) */
     int res = 0;
-
     struct netfs_msg_header req_header = { 0 };
     req_header.msg_type = MSG_READDIR;
     req_header.msg_len = strlen(path) + 1;
-
-    //HARD CODES FIX TO CHANGE BASED ON USER INPUT
     int server_fd = connect_to("localhost", DEFAULT_PORT);
-    //we should check if server_fd is less than 0 here...
     write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
     write_len(server_fd, path, req_header.msg_len);
-
     uint16_t reply_len;
     char reply_path[1024] = { 0 };
     do {
@@ -113,18 +104,18 @@ static int netfs_readdir(
     return res;
 }
 
+//open function that connects to server, sets type and length and sends it to the server
+//reads in the result (success or failure of the open) and returns 0 on success
+//Logs information to the server
 static int netfs_open(const char *path, struct fuse_file_info *fi) {
 
     LOG("open: %s\n", path);
-
-    /* By default, we will return 0 from this function (success) */
     int res = 0;
     int result;
     struct netfs_msg_header req_header = { 0 };
     req_header.msg_type = MSG_GETOPEN;
     req_header.msg_len = strlen(path) + 1;
     int server_fd = connect_to("localhost", DEFAULT_PORT);
-    // //we should check if server_fd is less than 0 here...
     write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
     write_len(server_fd, path, req_header.msg_len);  
     read_len(server_fd, &result, sizeof(int));
@@ -137,15 +128,17 @@ static int netfs_open(const char *path, struct fuse_file_info *fi) {
     return res;
 }
 
+
+//connects to the server
+//Client's read function that sets Type and length and sends it to the server
+//writes the offset and size to the server
+//reads in size and buf
+//Logs information to the server
 static int netfs_read(
         const char *path, char *buf, size_t size, off_t offset,
         struct fuse_file_info *fi) {
 
     LOG("read: %s\n", path);
-
-
-
-    /* By default, we will return 0 from this function (success) */
     int res = 0;
     struct netfs_msg_header req_header = { 0 };
     req_header.msg_type = MSG_READ;
