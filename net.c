@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <netdb.h>
 
+//reads bytes sent by write_len
 ssize_t read_len(int fd, void *buf, size_t length) {
 	ssize_t bytes = 0;
 	size_t bytes_read = 0;
@@ -32,6 +33,7 @@ ssize_t read_len(int fd, void *buf, size_t length) {
 	return bytes_read;
 }
 
+//writes bytes to be read in be read_len
 ssize_t write_len(int fd, const void *buf, size_t length) {
 	ssize_t bytes = 0;
 	size_t bytes_written = 0;
@@ -47,6 +49,7 @@ ssize_t write_len(int fd, const void *buf, size_t length) {
 	return bytes_written;
 }
 
+//connects client to the server
 int connect_to(char *hostname, int port) {
 	int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
 	if (socket_fd == -1) {

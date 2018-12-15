@@ -26,6 +26,8 @@
 #include "logging.h"
 #include "net.h"
 
+//function that handles every request (readdir, getattr, open, and read)
+//Logs information to the server
 void handle_request(int fd) {
     struct netfs_msg_header req_header = { 0 };
     read_len(fd, &req_header, sizeof(struct netfs_msg_header));
@@ -39,7 +41,6 @@ void handle_request(int fd) {
         char path[1024] = { 0 };
         read_len(fd, path, req_header.msg_len);
         LOG("readdir: %s\n", path);
-
         char full_path[1024] = { 0 };
         strcpy(full_path, ".");
         strcat(full_path, path);
@@ -57,11 +58,10 @@ void handle_request(int fd) {
             len = strlen(entry->d_name) +1;
             write_len(fd, &len, sizeof(uint16_t));
             write_len(fd, entry->d_name, len);
-           // printf("-> %s\n", entry->d_name);
         }
+
         len = 0;
         write_len(fd, &len, sizeof(uint16_t));
-
         closedir(directory);
         close(fd);
         return;
@@ -69,12 +69,10 @@ void handle_request(int fd) {
     }else if(type == MSG_GETATTR) {
         char path[1024] = { 0 };
         read_len(fd, path, req_header.msg_len);
-       // read_len(fd, path, req_header->msg_len);
         LOG("getattr: %s\n", path);
         char full_path[1024] = { 0 };
         strcpy(full_path, ".");
         strcat(full_path, path);
-
         struct stat *stbuf = malloc(sizeof(struct stat));
         int result = stat(full_path, stbuf);
         if (result == -1) {
@@ -85,7 +83,6 @@ void handle_request(int fd) {
         }
 
         write_len(fd, &result, sizeof(int));
-        //int uid = stbuf->uid_t;
         if(stbuf->st_uid != getuid()){
             stbuf->st_uid = 0;
         } else{
@@ -94,7 +91,6 @@ void handle_request(int fd) {
         if(result != -1){
             write_len(fd, stbuf, sizeof(struct stat));
         }
-
         free(stbuf);
         close(fd);
         return;
@@ -128,31 +124,20 @@ void handle_request(int fd) {
         int result = open(full_path, O_RDONLY);
         //get the stat
         struct stat *stbuf = malloc(sizeof(struct stat));
-
         //if size > file size from stat
         //then size = actual file size
-
-
         if(size>sizeof(stbuf->st_size)){
             size = stbuf->st_size;
         }
+
         write_len(fd, &size, sizeof(size_t));
-
-        ///write the size
-        
-
-        //while loop for sendfile, returns bytes
+        //Loop until sendsize equals actual size
         int sendsize = 0;
         while (sendsize<stbuf->st_size){
             sendsize += sendfile(fd, result, &offset, size);
         }
+
         write_len(fd, &sendsize, sizeof(int));
-
-        
-
-        //write the sendfile
-        //write_len(fd, &result, sizeof(int));
-
         free(stbuf);
         close(fd);
         return;
@@ -161,8 +146,6 @@ void handle_request(int fd) {
         LOG("%s\n","ERROR: Unknown request type\n");
     }
 }
-
-//ps aux | grep netfs 
 
 int main(int argc, char *argv[]) {
 
