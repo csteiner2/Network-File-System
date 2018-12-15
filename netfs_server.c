@@ -20,7 +20,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
-
+#include <sys/sendfile.h>
 
 #include "common.h"
 #include "logging.h"
@@ -98,6 +98,17 @@ void handle_request(int fd) {
         }
 
         free(stbuf);
+        close(fd);
+        return;
+    }else if(type == MSG_GETOPEN){
+        char path[1024] = { 0 };
+        read_len(fd, path, req_header.msg_len);
+        LOG("getopen: %s\n", path);
+        char full_path[1024] = { 0 };
+        strcpy(full_path, ".");
+        strcat(full_path, path);
+        int result = open(full_path, O_RDONLY);
+        write_len(fd, &result, sizeof(int));
         close(fd);
         return;
     }else{

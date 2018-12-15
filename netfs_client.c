@@ -175,17 +175,45 @@ static int netfs_open(const char *path, struct fuse_file_info *fi) {
 
     /* By default, we will return 0 from this function (success) */
     int res = 0;
+    int result;
+    struct netfs_msg_header req_header = { 0 };
+    req_header.msg_type = MSG_GETOPEN;
+    req_header.msg_len = strlen(path) + 1;
+    int server_fd = connect_to("localhost", DEFAULT_PORT);
+    // //we should check if server_fd is less than 0 here...
+    write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
+    write_len(server_fd, path, req_header.msg_len);
 
+
+
+    //  struct netfs_msg_header req_header = { 0 };
+    // req_header.msg_type = MSG_GETATTR;
+    // req_header.msg_len = strlen(path) + 1;
+    // int server_fd = connect_to("localhost", DEFAULT_PORT);
+    // // //we should check if server_fd is less than 0 here...
+    // write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
+    // write_len(server_fd, path, req_header.msg_len);
+
+     
+    read_len(server_fd, &result, sizeof(int));
+    if(result!=0){
+        LOG("ERROR result != 0: %d\n", result);
+        close(server_fd);
+        return -1;
+    }
+
+
+    close(server_fd);
     /* Once again, incrementing the path pointer by 1 will remove the '/' from
      * the start of the path. We compare it with our test file. */
-    if (strcmp(path+1, "test_file") != 0) {
-        return -ENOENT;
-    }
+    // if (strcmp(path+1, "test_file") != 0) {
+    //     return -ENOENT;
+    // }
 
     /* We only support opening the file in read-only mode */
-    if ((fi->flags & O_ACCMODE) != O_RDONLY) {
-        return -EACCES;
-    }
+    // if ((fi->flags & O_ACCMODE) != O_RDONLY) {
+    //     return -EACCES;
+    // }
     return res;
 }
 
