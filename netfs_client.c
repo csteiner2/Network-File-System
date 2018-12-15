@@ -22,6 +22,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include "common.h"
 #include "logging.h"
@@ -58,56 +59,68 @@ static int netfs_getattr(
 
     /* By default, we will return 0 from this function (success) */
     int res = 0;
-    // struct netfs_msg_header req_header = { 0 };
-    // req_header.msg_type = MSG_GETATTR;
-    // req_header.msg_len = strlen(path) + 1;
-    // int server_fd = connect_to("localhost", DEFAULT_PORT);
-    // // //we should check if server_fd is less than 0 here...
-    //  write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
-    //  write_len(server_fd, path, req_header.msg_len);
+    int result;
+    struct netfs_msg_header req_header = { 0 };
+    req_header.msg_type = MSG_GETATTR;
+    req_header.msg_len = strlen(path) + 1;
+    int server_fd = connect_to("localhost", DEFAULT_PORT);
+    // //we should check if server_fd is less than 0 here...
+    write_len(server_fd, &req_header, sizeof(struct netfs_msg_header));
+    write_len(server_fd, path, req_header.msg_len);
 
     // uint16_t reply_len;
      //char reply_path[1024] = { 0 };
-
-    //struct stat *strec;
-    //memset(strec, 0, sizeof(struct stat));
-
-    //takes in the user ID from the server
-   // read_len(server_fd, stbuf, sizeof(uint16_t));
-    //int uid2 = stbuf->st_uid;
-    //LOG("UID2: %d\n", uid2);
-    
-    
-    //stbuf->st_mode = (mode_t) (~0222 & remote_st.st_mode);
-   // close(server_fd);
-
-    if (strcmp(path, "/") == 0) {
-        /* This is the root directory. We have hard-coded the permissions to 755
-         * here, but you should apply the permissions from the remote directory
-         * instead. The mode means:
-         *   - S_IFDIR: this is a directory
-         *   - 0755: user can read, write, execute. All others can read+execute.
-         * The number of links refers to how many hard links point to the file.
-         * If the link count reaches 0, the file is effectively deleted (this is
-         * why deleting a file is actually 'unlinking' it).
-         */
-        stbuf->st_mode = S_IFDIR | 0755;
-        stbuf->st_nlink = 2;
-    } else if (strcmp(path+1, "test_file") == 0) {
-        /* Incrementing the path pointer by 1 will remove the '/' from the start
-         * of the path. We're comparing it with a hard-coded file name.
-         *   - S_IFREG: indicates a regular file
-         * We also hard-code the size of this file based on its contents: 'hello
-         * world!' */
-        stbuf->st_mode = S_IFREG | 0444;
-        stbuf->st_nlink = 1;
-        stbuf->st_size = strlen(TEST_DATA);
-    } else {
-        /* -ENOENT = 'no such file or directory'. In other words, this demo code
-         * only supports the root directory and a single file named
-         * "test_file" */
-        res = -ENOENT;
+     
+    read_len(server_fd, &result, sizeof(int));
+    if(result<0){
+        LOG("ERROR result less than 0: %d\n", result);
+        close(server_fd);
+        return -1;
     }
+    
+    read_len(server_fd, stbuf, sizeof(struct stat));
+
+    // if(result==0){
+    //     read_len(server_fd, stbuf, sizeof(struct stat));  
+    // } else {
+    //     close(server_fd);
+    //     return -1;
+    // }
+
+    if(stbuf->st_uid ==1) {
+            stbuf->st_uid = getuid();
+        }
+    stbuf->st_mode = (mode_t) (~0222 & stbuf->st_mode);
+    close(server_fd);
+    
+
+    // if (strcmp(path, "/") == 0) {
+    //     /* This is the root directory. We have hard-coded the permissions to 755
+    //      * here, but you should apply the permissions from the remote directory
+    //      * instead. The mode means:
+    //      *   - S_IFDIR: this is a directory
+    //      *   - 0755: user can read, write, execute. All others can read+execute.
+    //      * The number of links refers to how many hard links point to the file.
+    //      * If the link count reaches 0, the file is effectively deleted (this is
+    //      * why deleting a file is actually 'unlinking' it).
+    //      */
+    //     stbuf->st_mode = S_IFDIR | 0755;
+    //     stbuf->st_nlink = 2;
+    // } else if (strcmp(path+1, "test_file") == 0) {
+    //     /* Incrementing the path pointer by 1 will remove the '/' from the start
+    //      * of the path. We're comparing it with a hard-coded file name.
+    //      *   - S_IFREG: indicates a regular file
+    //      * We also hard-code the size of this file based on its contents: 'hello
+    //      * world!' */
+    //     stbuf->st_mode = S_IFREG | 0444;
+    //     stbuf->st_nlink = 1;
+    //     stbuf->st_size = strlen(TEST_DATA);
+    // } else {
+    //     /* -ENOENT = 'no such file or directory'. In other words, this demo code
+    //      * only supports the root directory and a single file named
+    //      * "test_file" */
+    //     res = -ENOENT;
+    // }
 
     return res;
 }
@@ -173,7 +186,6 @@ static int netfs_open(const char *path, struct fuse_file_info *fi) {
     if ((fi->flags & O_ACCMODE) != O_RDONLY) {
         return -EACCES;
     }
-
     return res;
 }
 

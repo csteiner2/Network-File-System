@@ -19,6 +19,8 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <sys/stat.h>
+
 
 #include "common.h"
 #include "logging.h"
@@ -40,9 +42,6 @@ void handle_request(int fd) {
         char full_path[1024] = { 0 };
         strcpy(full_path, ".");
         strcat(full_path, path);
-
-
-        
 
         DIR *directory;
         if ((directory = opendir(full_path)) == NULL) {
@@ -66,30 +65,47 @@ void handle_request(int fd) {
         close(fd);
         return;
     
-    }   else if(type == MSG_GETATTR) {
-            char path[1024] = { 0 };
-            read_len(fd, path, req_header.msg_len);
-            LOG("getattr: %s\n", path);
+    }else if(type == MSG_GETATTR) {
+        char path[1024] = { 0 };
+        read_len(fd, path, req_header.msg_len);
+       // read_len(fd, path, req_header->msg_len);
+        LOG("getattr: %s\n", path);
+        char full_path[1024] = { 0 };
+        strcpy(full_path, ".");
+        strcat(full_path, path);
 
-            char full_path[1024] = { 0 };
-            strcpy(full_path, ".");
-            strcat(full_path, path);
-            uint16_t len;
-            len = 0;
-            struct stat stbuf;
-            stat(full_path, stbuf);
-           // int uid = stbuf->uid_t;
-            
-            //if its not sent by the user send a zero
-            // stbuf->st_mode = (mode_t) (~0222 & remote_st.st_mode);
-            write_len(fd, &stbuf, sizeof(uint16_t));
+        struct stat *stbuf = malloc(sizeof(struct stat));
+        int result = stat(full_path, stbuf);
+        if (result == -1) {
+            perror("result from stat is -l\n");
+            free(stbuf);
+            close(fd);
             return;
-    }  else{
+        }
+
+        write_len(fd, &result, sizeof(int));
+        //int uid = stbuf->uid_t;
+        if(stbuf->st_uid != getuid()){
+            stbuf->st_uid = 0;
+        } else{
+            stbuf->st_uid = 1;
+        }
+        
+        //if its not sent by the user send a zero
+        // stbuf->st_mode = (mode_t) (~0222 & remote_st.st_mode);
+        if(result != -1){
+            write_len(fd, stbuf, sizeof(struct stat));
+        }
+
+        free(stbuf);
+        close(fd);
+        return;
+    }else{
         LOG("%s\n","ERROR: Unknown request type\n");
     }
 }
 
-
+//ps aux | grep netfs 
 
 int main(int argc, char *argv[]) {
 

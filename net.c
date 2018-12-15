@@ -32,7 +32,7 @@ ssize_t read_len(int fd, void *buf, size_t length) {
 	return bytes_read;
 }
 
-ssize_t write_len(int fd, void *buf, size_t length) {
+ssize_t write_len(int fd, const void *buf, size_t length) {
 	ssize_t bytes = 0;
 	size_t bytes_written = 0;
 	while (bytes_written < length) {
